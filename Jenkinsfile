@@ -1,11 +1,18 @@
 pipeline {
     agent any
 
+    environment {
+        AWS_REGION = 'ap-south-1'
+        ACCOUNT_ID = '123456789012'   // 🔴 replace with your AWS account ID
+        ECR_REPO = 'maheshimg'      // 🔴 your ECR repo name
+        IMAGE_TAG = 'latest'
+    }
+
     stages {
 
         stage('Checkout Code') {
             steps {
-                echo "Code pulled from GitHub"
+                git 'https://github.com/chakri422/maheshpro.git'
             }
         }
 
@@ -15,10 +22,34 @@ pipeline {
             }
         }
 
-        stage('Run Container') {
+        stage('Tag Image') {
             steps {
-                sh 'docker run -d -p 80:80 my-website'
+                sh '''
+                docker tag my-website:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                '''
             }
         }
-    }
+
+        stage('Login to ECR') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'aws-creds'
+                ]]) {
+                    sh '''
+                    aws ecr get-login-password --region $AWS_REGION | \
+                    docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                    '''
+                }
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                sh '''
+                docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                '''
+            }
+        }
+}
 }
