@@ -22,29 +22,29 @@ pipeline {
             }
         }
 
-        stage('Tag Image') {
-            steps {
-                sh """
-                docker tag my-website:${IMAGE_TAG} \
-                $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
-                """
-            }
-        }
+    stage('Tag Image') {
+    steps {
+        sh """
+        docker tag my-website:${IMAGE_TAG} \
+        ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
+        """
+    }
+}  
 
         stage('Login to ECR') {
-            steps {
-                withCredentials([[
-                    $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-cred'
-                ]]) {
-                    sh """
-                    aws ecr get-login-password --region $AWS_REGION | \
-                    docker login --username AWS --password-stdin \
-                    $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
-                    """
-                }
-            }
+    steps {
+        withCredentials([[
+            $class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: 'aws-cred'
+        ]]) {
+            sh """
+            aws ecr get-login-password --region ${AWS_REGION} | \
+            docker login --username AWS --password-stdin \
+            ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+            """
         }
+    }
+}
 
         stage('Push to ECR') {
             steps {
