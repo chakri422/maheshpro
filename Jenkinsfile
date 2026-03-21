@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         AWS_REGION = 'ap-south-1'
-        ACCOUNT_ID = '123456789012'   // 🔴 replace with your AWS account ID
-        ECR_REPO = 'maheshimg'      // 🔴 your ECR repo name
-        IMAGE_TAG = 'latest'
+        ACCOUNT_ID = credentials('aws-account-id')   // store in Jenkins creds
+        ECR_REPO = 'maheshimg'
+        IMAGE_TAG = "v1.${BUILD_NUMBER}"   // dynamic tag (better than latest)
     }
 
     stages {
@@ -18,14 +18,15 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t my-website .'
+                sh 'docker build -t my-website:${IMAGE_TAG} .'
             }
         }
 
         stage('Tag Image') {
             steps {
                 sh '''
-                docker tag my-website:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                docker tag my-website:${IMAGE_TAG} \
+                $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
                 '''
             }
         }
@@ -34,11 +35,12 @@ pipeline {
             steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
-                    credentialsId: 'aws-creds'
+                    credentialsId: 'aws-cred'
                 ]]) {
                     sh '''
                     aws ecr get-login-password --region $AWS_REGION | \
-                    docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                    docker login --username AWS --password-stdin \
+                    $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
                     '''
                 }
             }
@@ -47,9 +49,22 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 sh '''
-                docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
                 '''
             }
         }
-}
+    }
+
+    post {
+        always {
+            echo "Cleaning up Docker images..."
+            sh 'docker system prune -f'
+        }
+        success {
+            echo "Pipeline executed successfully 🚀"
+        }
+        failure {
+            echo "Pipeline failed ❌"
+        }
+    }
 }
