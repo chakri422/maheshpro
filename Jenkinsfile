@@ -49,8 +49,8 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 sh """
-                docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:${IMAGE_TAG}
-                """
+docker push ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}:${IMAGE_TAG}
+"""
             }
         }
 
